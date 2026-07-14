@@ -26,7 +26,9 @@ curl -fsSL https://artifact.cafe/install.sh | bash
 ```
 
 Both install the same skill into `~/.agents/skills/artifact-cafe/`
-(`SKILL.md` plus bundled zero-Node `scripts/`).
+(`SKILL.md` plus bundled zero-Node `scripts/`) and register it with your
+agents (a symlink in `~/.claude/skills/`, and any other agent skills dir
+that already exists) so it's discoverable right away.
 
 ## What's here
 
@@ -36,8 +38,9 @@ Both install the same skill into `~/.agents/skills/artifact-cafe/`
 | `artifact-cafe/scripts/publish.sh` | Zero-Node publish helper (bash + curl + jq) |
 | `artifact-cafe/scripts/comments.sh` | Zero-Node comment-pull helper |
 
-The preferred path uses the `artifact-cafe` npm CLI (`npx artifact-cafe publish .`);
-the bundled scripts are the fallback for environments without Node.
+The preferred path uses the `artifact-cafe` npm CLI (`npx artifact-cafe@latest publish .`
+— `@latest` so npx always runs the newest release); the bundled scripts are the
+fallback for environments without Node.
 
 ## Canonical source
 

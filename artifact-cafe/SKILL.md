@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.1.0**
+**Skill version: 0.6.0**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -38,16 +38,29 @@ If they just want raw file hosting with no review loop, this isn't the tool.
 ## Requirements
 
 - **Preferred:** Node / `npx` (every major agent host has it). Nothing to install
-  ahead of time — `npx artifact-cafe` fetches the CLI on demand.
+  ahead of time — `npx artifact-cafe@latest` fetches the CLI on demand.
 - **Fallback (no Node):** `bash`, `curl`, `jq`, and `shasum`/`sha256sum`. Use the
   bundled `./scripts/publish.sh`.
+
+## Staying up to date
+
+- **Always invoke the CLI as `npx artifact-cafe@latest …`** (as every example
+  here does). The `@latest` tag makes npx fetch the newest published CLI on
+  each run instead of reusing a stale cache — that *is* the CLI auto-update.
+- The CLI checks for updates (at most once per day) and prints
+  `[artifact-cafe] …` notices on **stderr**; they never pollute `--json`
+  stdout. When you see `Skill update available`, run the command it prints —
+  `npx skills add artifact-cafe/skill --skill artifact-cafe -g` (drop `-g`
+  for a repo-local copy) — then re-read the updated SKILL.md before
+  continuing. Don't ask permission for this refresh; it only rewrites this
+  skill's own files.
 
 ## Publish (preferred path)
 
 Run from the skill-invoking session, pointed at the folder to publish:
 
 ```bash
-npx artifact-cafe publish ./my-artifact --title "Onboarding redesign"
+npx artifact-cafe@latest publish ./my-artifact --title "Onboarding redesign"
 ```
 
 The folder must contain an entry `index.html` at its root (or pass `--entry`).
@@ -66,6 +79,8 @@ Options:
 --title "Onboarding redesign"   # RECOMMENDED — review-page title + URL slug; generate one by default
 --entry index.html              # entry file (default: auto-detect)
 --artifact art_xxx              # publish a new version to an existing artifact
+--workspace acme                # explicit team workspace
+--folder specs                  # optional folder in that workspace
 --json                          # machine-readable output (use this for agents)
 --no-open                       # don't try to open a browser
 ```
@@ -74,16 +89,26 @@ On the **first** publish of a new folder the command prints a **review URL**
 and a **claim URL** (shown once). It writes `.artifactcafe/config.json` with the
 artifact id and a secret publish token, and gitignores it.
 
+Never infer a workspace from the artifact's content. For a new artifact, use an
+explicit `--workspace`/`--folder` when the user named one; otherwise the CLI
+uses the nearest `artifact-cafe.json` project default. With neither, an agent
+publish falls back to Personal when signed in and stays anonymous otherwise.
+Always use `--json` and report its `destination` and `destinationSource` fields.
+
 ## Publish without Node (fallback)
 
-Identical behavior, pure bash — for environments where `npx` isn't available:
+The same static publish pipeline, pure bash — for environments where `npx`
+isn't available:
 
 ```bash
 ./scripts/publish.sh ./my-artifact --title "Onboarding redesign"
 ```
 
-Same flags (`--title`, `--entry`, `--artifact`, `--json`, `--no-open`). It
-speaks the same API and writes the same `.artifactcafe/config.json`.
+It supports `--title`, `--entry`, `--artifact`, `--json`, and `--no-open`,
+speaks the same API, and writes the same `.artifactcafe/config.json`. Workspace
+discovery, project defaults, and the human picker require the npm CLI. If a
+new artifact has an `artifact-cafe.json` policy, the fallback refuses instead
+of silently publishing to a different destination.
 
 ## Publish a new version
 
@@ -92,32 +117,144 @@ and comments stay attached to the version they were made on. To ship v2, just
 publish the same folder again from the same directory:
 
 ```bash
-npx artifact-cafe publish ./my-artifact      # → v2, v3, …
+npx artifact-cafe@latest publish ./my-artifact      # → v2, v3, …
 ```
 
 The stored publish token in `.artifactcafe/config.json` authorizes the new
 version automatically. From a fresh checkout that lacks the token, set
 `ARTIFACT_CAFE_TOKEN` (the publish token) or target it with `--artifact <id>`.
+If you're logged in, `artifact-cafe link --artifact <id>` binds the folder to
+one of your own artifacts (or `link --json` to list them first) so later
+commands run bare — no token needed, owner actions use your login.
 
 ## Pull comments
 
 The read side of the loop — what reviewers said, so the agent can address it:
 
 ```bash
-npx artifact-cafe comments            # open threads on the current version
-npx artifact-cafe comments --json     # structured, for programmatic handling
+npx artifact-cafe@latest comments            # open threads on the current version
+npx artifact-cafe@latest comments --json     # structured, for programmatic handling
 ./scripts/comments.sh                 # no-Node fallback
 ```
 
 Filters: `--status open|resolved|all`, `--version current|all`. Each thread
 carries its author, the version it was made on, the anchor (a quoted text span
-or an element path), the message body, and replies. Resolve threads in the web
-review UI once addressed, then publish the next version.
+or an element path), the message body, and replies. Address the feedback,
+publish the next version, then close the loop with `reply`/`resolve` (below).
+
+Both the CLI and the fallback also accept `--artifact <id>` (or
+`ARTIFACT_CAFE_ARTIFACT_ID`) to read an artifact without its folder — the same
+detached targeting as `publish`; add `ARTIFACT_CAFE_TOKEN` for a
+password-protected one.
+
+## Respond to comments
+
+The write side of the loop — how the agent answers feedback after publishing a
+version that addresses it. Take each thread's `id` from `comments --json`:
+
+```bash
+# Post what changed back into the thread, then close it — one step
+npx artifact-cafe@latest reply <threadId> --body "Fixed in v2 — CTA moved above the fold." --resolve
+
+npx artifact-cafe@latest reply <threadId> --body "…"     # reply, leave it open
+echo "$msg" | npx artifact-cafe@latest reply <threadId>  # long body from stdin
+npx artifact-cafe@latest resolve <threadId>              # close a thread you addressed
+npx artifact-cafe@latest reopen <threadId>               # undo — reopen a resolved one
+```
+
+A publish-token reply is attributed to **the agent** (named from the version's
+source agent), so the reviewer sees who responded; replying under a signed-in
+account renders as the owner. Prefer `reply --resolve` over a bare `resolve` —
+it tells the reviewer *what* you changed instead of silently closing the thread.
+Same detached targeting as the rest (`--artifact <id>` + `ARTIFACT_CAFE_TOKEN`,
+or your account key); every command takes `--json`.
+
+Fix or retract a message you wrote — take the id from `comments --json` (each
+thread's `messageId` for its opening comment, each reply's `id`):
+
+```bash
+npx artifact-cafe@latest edit <messageId> --body "Revised — moved the CTA, not removed it."
+npx artifact-cafe@latest delete <messageId>
+```
+
+You can only edit or delete a message **you** authored — a token-authored agent
+reply, or your own account comment; the same credential that wrote it authorizes
+the change. `edit` adds an "edited" marker (no history). `delete` is a *soft*
+delete: the comment becomes a "Comment deleted" tombstone and any replies under
+it survive.
+
+## Open a review thread
+
+`reply` answers an existing thread; `comment` **opens a new one** — for leaving
+your own review notes on an artifact:
+
+```bash
+npx artifact-cafe@latest comment --quote "Where AI work lives" --body "This headline is vague."
+npx artifact-cafe@latest comment --body "Overall this reads well."   # page-level, no --quote
+```
+
+Unlike the rest of the loop, `comment` authors as **your account**, so it needs
+`artifact-cafe login` — a publish token can't open threads (agents respond;
+accounts originate) and returns a login hint if that's all you have. `--quote`
+anchors the thread to matching text (`--prefix`/`--suffix` disambiguate a quote
+that repeats); with no `--quote` it's a page-level comment. `--via "Claude Code"`
+adds an attribution label shown after your account name — additive, never a mask.
+
+`comment`, `edit`, and `delete` (like `listen`) need the Node CLI — no bash
+fallback.
+
+## Offer live editing mode (opt-in)
+
+Publishing and live editing are separate actions. After publishing and sharing
+the review URL, ask the user whether they want to enter **live editing mode**.
+Explain that you will stay attached to the local artifact, receive new comments
+as they arrive, revise it, and publish new immutable versions while they review.
+
+Do not start live editing mode automatically. A user may want to share the link
+with guests and collect feedback asynchronously without keeping a local agent
+session active. Only start listening after the user explicitly opts in:
+
+```bash
+npx artifact-cafe@latest listen --json --timeout 540
+```
+
+`listen` is the live-loop entry point — it's exactly `comments --wait` (same
+flags, same output), named for what it does. It does **not** run a local server
+or auto-republish on save; publishing the next version stays a separate,
+explicit `publish`. The command blocks until a reviewer leaves *new* feedback (a
+new thread, or a new reply), then prints only the new/changed threads and exits
+`0`. Each thread is tagged `"change": "new" | "updated"`. If nothing arrives
+before `--timeout` seconds it exits `2` with `"timedOut": true`. While it runs,
+the review page shows a live **"Agent is listening"** indicator, so the reviewer
+knows their comments will be acted on immediately.
+
+The opt-in loop, until the user says they're done:
+
+1. `publish` → share the review URL → ask whether to enter live editing mode.
+2. After a clear yes, run `listen --json --timeout 540` (pick a timeout under
+   your execution environment's command limit — 540s fits a 10-minute cap).
+3. Feedback arrives → make the changes it asks for.
+4. `publish` again → the reviewer's page offers "v{N} just published — view
+   latest" automatically.
+5. `reply <threadId> --resolve` each thread you addressed, so the reviewer sees
+   what changed and the thread closes. Go to 2.
+
+If the command times out with exit code `2`, tell the user the listening window
+ended and ask whether to continue before running it again. Do not keep an
+unattended session alive indefinitely.
+
+`listen` needs the Node CLI (no bash-script fallback). It normally runs from
+the folder's `.artifactcafe/config.json`, but it doesn't have to: you can listen
+from **any machine** — CI, a fresh checkout, a different session than the one
+that published — by pointing at the artifact directly with `--artifact <id>`
+(or `ARTIFACT_CAFE_ARTIFACT_ID`) plus `ARTIFACT_CAFE_TOKEN`. That credential —
+the folder token, the env token, or a signed-in account key — authorizes the
+presence heartbeat and unlocks password-protected artifacts.
 
 ## Open the review page
 
 ```bash
-npx artifact-cafe open     # prints (and, in a terminal, opens) the review URL
+npx artifact-cafe@latest open     # prints (and, in a terminal, opens) the review URL
 ```
 
 ## Local config and the publish token

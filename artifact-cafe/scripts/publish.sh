@@ -134,7 +134,7 @@ mime_for() {
 ignored_file() {
   local base="$1"
   case "$base" in
-    .DS_Store|.env|.env.*|.git*) return 0 ;;
+    .DS_Store|.env|.env.*|.git*|artifact-cafe.json) return 0 ;;
     *.pem|*.key) return 0 ;;
   esac
   return 1
@@ -208,9 +208,26 @@ CFG_ARTIFACT_ID="$(cfg artifactId)"
 CFG_TOKEN="$(cfg publishToken)"
 CFG_API_URL="$(cfg apiUrl)"
 
+PROJECT_CONFIG=""
+cursor="$DIR"
+while true; do
+  if [[ -f "$cursor/artifact-cafe.json" ]]; then
+    PROJECT_CONFIG="$cursor/artifact-cafe.json"
+    break
+  fi
+  [[ -e "$cursor/.git" ]] && break
+  parent="$(dirname "$cursor")"
+  [[ "$parent" == "$cursor" ]] && break
+  cursor="$parent"
+done
+
 ARTIFACT_ID="${ARTIFACT_ID_FLAG:-$CFG_ARTIFACT_ID}"
 API_URL="${API_URL_FLAG:-${ARTIFACT_CAFE_URL:-${CFG_API_URL:-$DEFAULT_API_URL}}}"
 API_URL="${API_URL%/}"
+
+if [[ -z "$ARTIFACT_ID" && -n "$PROJECT_CONFIG" ]]; then
+  die "Project workspace defaults require the npm CLI: npx artifact-cafe@latest publish \"$DIR\" --json"
+fi
 
 # The stored token only authorizes its own artifact.
 TOKEN=""
@@ -293,6 +310,19 @@ NEW_TOKEN="$(jq -r '.publishToken // empty' <<<"$result")"
 CLAIM_URL="$(jq -r '.claimUrl // empty' <<<"$result")"
 RESULT_ARTIFACT_ID="$(jq -r '.artifactId' <<<"$result")"
 
+DESTINATION="anonymous"
+DESTINATION_SOURCE="anonymous-default"
+DESTINATION_LABEL="Anonymous"
+if [[ -n "$ARTIFACT_ID" ]]; then
+  DESTINATION="existing-artifact"
+  DESTINATION_SOURCE="artifact-config"
+  DESTINATION_LABEL="Existing artifact"
+elif [[ "$TOKEN" == ack_* ]]; then
+  DESTINATION="personal"
+  DESTINATION_SOURCE="personal-default"
+  DESTINATION_LABEL="Personal"
+fi
+
 # ── Persist config on first publish (never print the token) ────────────────
 if [[ -n "$NEW_TOKEN" ]]; then
   slug="${URL##*/a/}"
@@ -314,9 +344,11 @@ fi
 if [[ "$JSON" -eq 1 ]]; then
   jq -n \
     --arg id "$RESULT_ARTIFACT_ID" --argjson v "$VERSION" --arg url "$URL" \
+    --arg destination "$DESTINATION" --arg source "$DESTINATION_SOURCE" \
     --arg claim "$CLAIM_URL" --argjson session "$session" --argjson ignored "$IGNORED_JSON" \
     '{
       artifactId:$id, versionNumber:$v, url:$url,
+      destination:$destination, destinationSource:$source,
       filesUploaded: ($session.filesToUpload | map(.path)),
       skippedFiles: $session.skippedFiles,
       ignored: $ignored
@@ -324,6 +356,8 @@ if [[ "$JSON" -eq 1 ]]; then
 elif [[ "$VERSION" == "1" ]]; then
   echo ""
   echo "✓ Published to artifact.cafe"
+  echo ""
+  echo "Destination: $DESTINATION_LABEL"
   echo ""
   echo "Review URL:"
   echo "$URL"
@@ -336,6 +370,8 @@ elif [[ "$VERSION" == "1" ]]; then
 else
   echo ""
   echo "✓ Published v$VERSION"
+  echo "Destination: $DESTINATION_LABEL"
+  echo ""
   echo "$URL"
   echo ""
 fi

@@ -9,10 +9,15 @@
 # Requires: bash, curl, jq.
 set -euo pipefail
 
+DEFAULT_API_URL="https://artifact.cafe"
+
 DIR="."
 JSON=0
 STATUS="open"      # open | resolved | all
 VERSION="current"  # current | all
+ARTIFACT_ID_FLAG=""
+TOKEN_FLAG=""
+API_URL_FLAG=""
 
 usage() {
   cat <<'USAGE'
@@ -21,6 +26,11 @@ Usage: comments.sh [dir] [options]
 Options:
   --status <s>    open | resolved | all   (default: open)
   --version <v>   current | all           (default: current)
+  --artifact <id> Read an artifact by id instead of the linked folder
+                  (else read from config / $ARTIFACT_CAFE_ARTIFACT_ID)
+  --token <token> Publish token, for a password-protected artifact
+                  (else read from config / $ARTIFACT_CAFE_TOKEN)
+  --api-url <url> API base (default: https://artifact.cafe)
   --json          Machine-readable output
   -h, --help      Show this help
 USAGE
@@ -33,11 +43,14 @@ for cmd in curl jq; do command -v "$cmd" >/dev/null 2>&1 || die "requires $cmd";
 DIR_SET=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --status)  STATUS="$2"; shift 2 ;;
-    --version) VERSION="$2"; shift 2 ;;
-    --json)    JSON=1; shift ;;
-    -h|--help) usage 0 ;;
-    -*)        die "unknown option: $1" ;;
+    --status)   STATUS="$2"; shift 2 ;;
+    --version)  VERSION="$2"; shift 2 ;;
+    --artifact) ARTIFACT_ID_FLAG="$2"; shift 2 ;;
+    --token)    TOKEN_FLAG="$2"; shift 2 ;;
+    --api-url)  API_URL_FLAG="$2"; shift 2 ;;
+    --json)     JSON=1; shift ;;
+    -h|--help)  usage 0 ;;
+    -*)         die "unknown option: $1" ;;
     *)         [[ "$DIR_SET" -eq 0 ]] && { DIR="$1"; DIR_SET=1; shift; } || die "unexpected argument: $1" ;;
   esac
 done
@@ -46,13 +59,40 @@ case "$STATUS" in open|resolved|all) ;; *) die "--status must be open | resolved
 case "$VERSION" in current|all) ;; *) die "--version must be current | all" ;; esac
 
 CONFIG_FILE="$DIR/.artifactcafe/config.json"
-[[ -f "$CONFIG_FILE" ]] || die "No artifact linked in $DIR — run publish.sh there first."
-ARTIFACT_ID="$(jq -r '.artifactId' "$CONFIG_FILE")"
-URL="$(jq -r '.url' "$CONFIG_FILE")"
-API_URL="${ARTIFACT_CAFE_URL:-$(jq -r '.apiUrl' "$CONFIG_FILE")}"
+cfg() { [[ -f "$CONFIG_FILE" ]] && jq -r "(.$1 // \"\")" "$CONFIG_FILE" 2>/dev/null || echo ""; }
+CFG_ARTIFACT_ID="$(cfg artifactId)"
+CFG_URL="$(cfg url)"
+CFG_API_URL="$(cfg apiUrl)"
+
+# artifactId: --artifact → $ARTIFACT_CAFE_ARTIFACT_ID → config.
+ARTIFACT_ID="${ARTIFACT_ID_FLAG:-${ARTIFACT_CAFE_ARTIFACT_ID:-$CFG_ARTIFACT_ID}}"
+[[ -n "$ARTIFACT_ID" ]] || die "No artifact to read in $DIR — run publish.sh there first, or pass --artifact <id> (or set ARTIFACT_CAFE_ARTIFACT_ID)."
+
+API_URL="${API_URL_FLAG:-${ARTIFACT_CAFE_URL:-${CFG_API_URL:-$DEFAULT_API_URL}}}"
 API_URL="${API_URL%/}"
 
-resp="$(curl -sS -w $'\n%{http_code}' \
+# Token authorizes reads of a password-protected artifact; public reads need
+# none. The folder token only speaks for its own artifact (like publish.sh).
+TOKEN=""
+if [[ -n "$TOKEN_FLAG" ]]; then
+  TOKEN="$TOKEN_FLAG"
+elif [[ "$ARTIFACT_ID" == "$CFG_ARTIFACT_ID" && -n "$(cfg publishToken)" ]]; then
+  TOKEN="$(cfg publishToken)"
+elif [[ -n "${ARTIFACT_CAFE_TOKEN:-}" ]]; then
+  TOKEN="$ARTIFACT_CAFE_TOKEN"
+fi
+auth_args=()
+[[ -n "$TOKEN" ]] && auth_args=(-H "authorization: Bearer $TOKEN")
+
+# Review URL for display: known from config, else derive it from the slug.
+URL="$CFG_URL"
+if [[ -z "$URL" || "$ARTIFACT_ID" != "$CFG_ARTIFACT_ID" ]]; then
+  slug="$(curl -sS ${auth_args[@]+"${auth_args[@]}"} "$API_URL/api/v1/artifacts/$ARTIFACT_ID" \
+    | jq -r '.slug // empty' 2>/dev/null || true)"
+  [[ -n "$slug" ]] && URL="$API_URL/a/$slug" || URL="$API_URL/a/$ARTIFACT_ID"
+fi
+
+resp="$(curl -sS ${auth_args[@]+"${auth_args[@]}"} -w $'\n%{http_code}' \
   "$API_URL/api/v1/artifacts/$ARTIFACT_ID/comments/export?status=$STATUS&version=$VERSION")" \
   || die "could not reach $API_URL"
 code="${resp##*$'\n'}"
