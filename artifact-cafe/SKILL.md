@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.6.0**
+**Skill version: 0.7.0**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -89,11 +89,47 @@ On the **first** publish of a new folder the command prints a **review URL**
 and a **claim URL** (shown once). It writes `.artifactcafe/config.json` with the
 artifact id and a secret publish token, and gitignores it.
 
-Never infer a workspace from the artifact's content. For a new artifact, use an
-explicit `--workspace`/`--folder` when the user named one; otherwise the CLI
-uses the nearest `artifact-cafe.json` project default. With neither, an agent
-publish falls back to Personal when signed in and stays anonymous otherwise.
-Always use `--json` and report its `destination` and `destinationSource` fields.
+Decide the destination **before** the first publish — see "Choose where to
+publish" below. Always use `--json` and report its `destination` and
+`destinationSource` fields.
+
+## Choose where to publish (do this before a new artifact)
+
+This applies to the **first** publish of a new folder. A new *version* reuses
+the destination already recorded in `.artifactcafe/config.json` — skip all of
+this and just `publish` again. Resolve the destination in this priority order:
+
+**1. Check login first.** Run `npx artifact-cafe@latest whoami --json`.
+
+- **Logged in** (exit 0): publish under that account. A logged-in user should
+  never land on an anonymous, 24-hour artifact by accident — that is the bug
+  this order exists to prevent. Note that keys resolve **per origin** and
+  `ARTIFACT_CAFE_URL` selects the origin: if `whoami` fails for the origin you
+  are about to publish to, the account key won't apply to the publish either —
+  surface that (they're logged out for this origin) instead of silently
+  publishing anonymously.
+- **Not logged in** (non-zero exit): publish directly. This is an **anonymous**
+  artifact — it expires in 24h and returns a one-time claim URL. Tell the user
+  it's anonymous, and that `artifact-cafe login` first gives a permanent,
+  account-owned artifact instead.
+
+**2. Then pick the workspace (logged-in only).** If the user named an explicit
+`--workspace`, or a project `artifact-cafe.json` default applies, use it and
+don't ask. Otherwise list the account's workspaces with
+`npx artifact-cafe@latest workspaces --json` and choose:
+
+- **Only Personal** (no team workspaces): publish to Personal, no question.
+- **Personal plus team workspaces**: do not silently default to Personal. Look
+  at what the artifact is about; if its evident subject matches one of the
+  user's workspaces (e.g. planning for a "hellyeah" product when a `hellyeah`
+  workspace exists), **ask** the user whether to publish to that workspace or to
+  Personal, then pass `--workspace <handle>` accordingly.
+
+Content is only a hint for *what to ask* — never silently commit an artifact to
+a workspace you guessed from its content; the user's choice decides. `--json`
+disables the CLI's own interactive workspace picker, so a logged-in agent that
+skips this step defaults straight to Personal — which is exactly why you run
+these two checks yourself.
 
 ## Publish without Node (fallback)
 
