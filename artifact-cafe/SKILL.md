@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.7.0**
+**Skill version: 0.8.0**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -73,10 +73,28 @@ page **and becomes the readable review-URL slug** (e.g.
 `artifact.cafe/a/onboarding-redesign-a1b2c3`). Skipping it yields "Untitled
 artifact" and a random slug, so only omit it when you genuinely can't infer one.
 
+**Write version notes on every publish with `--notes`.** These are a changelog
+for this version, shown in the review page's **Versions** panel. Rules:
+
+- **Bullet points only** — one line per change, no prose paragraphs.
+- **One bullet per change. Do not compact big changes into a single bullet** —
+  if you shipped three meaningful things, that is three bullets, not one.
+- Keep each bullet short and concrete ("Added dark-mode toggle", not "misc UI").
+- Pass them as a newline-separated string; `$'…\n…'` is the reliable shell form:
+
+```bash
+npx artifact-cafe@latest publish ./my-artifact --title "Onboarding redesign" \
+  --notes $'- Added dark-mode toggle\n- Fixed nav overlap on mobile\n- Rewrote pricing copy'
+```
+
+On **v1** the notes describe the initial build; on **v2+** they describe what
+changed since the previous version.
+
 Options:
 
 ```bash
 --title "Onboarding redesign"   # RECOMMENDED — review-page title + URL slug; generate one by default
+--notes $'- Added X\n- Fixed Y' # RECOMMENDED — bullet-point changelog for this version (see below)
 --entry index.html              # entry file (default: auto-detect)
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
@@ -153,8 +171,12 @@ and comments stay attached to the version they were made on. To ship v2, just
 publish the same folder again from the same directory:
 
 ```bash
-npx artifact-cafe@latest publish ./my-artifact      # → v2, v3, …
+npx artifact-cafe@latest publish ./my-artifact \
+  --notes $'- Moved the CTA above the fold\n- Tightened hero spacing'   # → v2, v3, …
 ```
+
+**Pass `--notes` describing what changed since the last version** — a new
+version with no changelog leaves reviewers guessing what to re-review.
 
 The stored publish token in `.artifactcafe/config.json` authorizes the new
 version automatically. From a fresh checkout that lacks the token, set
