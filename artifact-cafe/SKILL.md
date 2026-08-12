@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.8.0**
+**Skill version: 0.9.0**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -98,7 +98,7 @@ Options:
 --entry index.html              # entry file (default: auto-detect)
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
---folder specs                  # optional folder in that workspace
+--folder specs                  # optional folder — SETS VISIBILITY, see below
 --review off                    # plain artifact: no review tools (see below)
 --json                          # machine-readable output (use this for agents)
 --no-open                       # don't try to open a browser
@@ -117,6 +117,20 @@ npx artifact-cafe@latest review open       # reopen it
 ```
 
 Comments are never deleted by this and come back when review reopens.
+
+**`--folder` decides who can open the review link.** A folder carries a
+visibility (`public` or `workspace`) and the artifact inherits it on publish.
+Land in a `workspace` folder and the review URL stops being a link anyone can
+open — it asks for a sign-in, and only members of that workspace get through.
+Without `--folder`, a new artifact is `unlisted`: anyone with the link, no
+account. So don't reach for `--folder` just to keep things tidy; discover the
+folder's visibility first with
+`npx artifact-cafe@latest folders --workspace <handle> --json`, and if it's
+`workspace`, say so before you publish there.
+
+`publish --json` reports the result as `visibility`
+(`public` | `unlisted` | `workspace` | `private`) — read it and tell the user
+what the link they're about to send actually does. See "What to tell the user".
 
 On the **first** publish of a new folder the command prints a **review URL**
 and a **claim URL** (shown once). It writes `.artifactcafe/config.json` with the
@@ -354,6 +368,68 @@ After the first publish, the folder holds:
 - Treat `config.json` as internal linkage state, not a URL. Never present the
   local file path to the user as if it were the review link.
 
+## Who can open the review link
+
+Every artifact has a **visibility**, and it decides whether the review URL is
+something you can paste into a group chat or something that stops at a sign-in:
+
+| Visibility | Who can open the review URL |
+|---|---|
+| `public` | Anyone with the link, no account. Also listed on the workspace's public page. |
+| `unlisted` | Anyone with the link, no account. Not listed anywhere. **The default for a new artifact.** |
+| `workspace` | **Members of the owning workspace only** — everyone else is asked to sign in. |
+| `private` | The publisher, the workspace's owner/admins, and people invited by email. |
+
+A new artifact is `unlisted` unless it lands in a folder, in which case it takes
+that folder's visibility. **Check it after publishing** — `publish --json`
+returns `visibility`, and `npx artifact-cafe@latest share --list` prints it as
+`General access` for an artifact you already have.
+
+**The CLI cannot change visibility** — there is no `--visibility` flag. It's a
+dashboard action (the artifact's share menu), or a consequence of which folder
+the artifact sits in. If the user wants a members-only artifact opened up, point
+them at the dashboard rather than guessing at a flag.
+
+## Share with one person
+
+When an artifact is `workspace` or `private` and someone outside needs in,
+invite them by email instead of loosening the artifact for everyone:
+
+```bash
+npx artifact-cafe@latest share alex@example.com     # invite (prints a link, once)
+npx artifact-cafe@latest share a@x.com b@y.com      # several at once
+npx artifact-cafe@latest share --list               # who has access + general access
+npx artifact-cafe@latest unshare alex@example.com   # revoke
+```
+
+Each invite returns an invitation URL **printed once** — surface it to the user
+verbatim, the same way you'd treat a claim URL. A grant survives redemption and
+is revoked by `unshare`, not by expiry. Same targeting as the rest
+(`--artifact <id>`, `--json`).
+
+## Read an artifact back
+
+To read a published artifact's content — yours or one you were pointed at —
+append `.md` to its content URL for a Markdown rendition:
+
+```bash
+curl -L https://<slug>.artifactcafe.dev/index.md
+```
+
+If the artifact is `workspace` or `private`, that request **401s with
+`workspace_required`** unless it carries an account credential. A browser
+session doesn't help here: the content origin is a different site and can't see
+it. Pass your account key instead:
+
+```bash
+curl -L -H "Authorization: Bearer ack_<key>" https://<slug>.artifactcafe.dev/index.md
+```
+
+The key is the one `artifact-cafe login` stored; it must belong to an account
+that is a member of the owning workspace (or holds a grant). Getting
+`workspace_required` while signed in on the website is expected — it means the
+request had no key, not that your account lacks access.
+
 ## Anonymous vs. claimed artifacts
 
 - A first publish with no account creates an **anonymous** artifact that
@@ -403,7 +479,14 @@ time is planned — treat this as a policy you enforce now, not a filter to evad
 ## What to tell the user
 
 - Always share the **review URL** from the current run — that's the link
-  reviewers open (no login needed) to comment.
+  reviewers open to comment.
+- **Say who can open it.** Read `visibility` from `publish --json`. On
+  `public`/`unlisted`, say it plainly: reviewers need no account. On
+  `workspace`/`private`, do **not** call it a link anyone can open — tell the
+  user it asks non-members to sign in, and offer
+  `artifact-cafe share <email>` for anyone outside. A user who sends a
+  members-only link to an outside reviewer and hears nothing back is the exact
+  failure this line exists to prevent.
 - If the run printed a **claim URL**, tell the user it's shown only once and
   that the artifact expires in 24 hours unless they claim it. Share it verbatim.
 - On a new version, share the review URL and note it's now **v{N}**; prior

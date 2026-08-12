@@ -309,6 +309,15 @@ VERSION="$(jq -r '.versionNumber' <<<"$result")"
 NEW_TOKEN="$(jq -r '.publishToken // empty' <<<"$result")"
 CLAIM_URL="$(jq -r '.claimUrl // empty' <<<"$result")"
 RESULT_ARTIFACT_ID="$(jq -r '.artifactId' <<<"$result")"
+VISIBILITY="$(jq -r '.visibility // empty' <<<"$result")"
+
+# Who can open the review URL. Only `workspace`/`private` need saying —
+# on public/unlisted "anyone with the link" is the point of the link.
+ACCESS_NOTE=""
+case "$VISIBILITY" in
+  workspace) ACCESS_NOTE="Access: workspace members only — anyone else needs \`artifact-cafe share <email>\` to open it." ;;
+  private)   ACCESS_NOTE="Access: private — you, the workspace's admins, and anyone you \`artifact-cafe share\` it with." ;;
+esac
 
 DESTINATION="anonymous"
 DESTINATION_SOURCE="anonymous-default"
@@ -346,9 +355,11 @@ if [[ "$JSON" -eq 1 ]]; then
     --arg id "$RESULT_ARTIFACT_ID" --argjson v "$VERSION" --arg url "$URL" \
     --arg destination "$DESTINATION" --arg source "$DESTINATION_SOURCE" \
     --arg claim "$CLAIM_URL" --argjson session "$session" --argjson ignored "$IGNORED_JSON" \
+    --arg visibility "$VISIBILITY" \
     '{
       artifactId:$id, versionNumber:$v, url:$url,
       destination:$destination, destinationSource:$source,
+      visibility: (if $visibility == "" then null else $visibility end),
       filesUploaded: ($session.filesToUpload | map(.path)),
       skippedFiles: $session.skippedFiles,
       ignored: $ignored
@@ -361,6 +372,10 @@ elif [[ "$VERSION" == "1" ]]; then
   echo ""
   echo "Review URL:"
   echo "$URL"
+  if [[ -n "$ACCESS_NOTE" ]]; then
+    echo ""
+    echo "$ACCESS_NOTE"
+  fi
   if [[ -n "$CLAIM_URL" ]]; then
     echo ""
     echo "Claim URL (shown once — claim to keep this artifact):"
@@ -373,6 +388,10 @@ else
   echo "Destination: $DESTINATION_LABEL"
   echo ""
   echo "$URL"
+  if [[ -n "$ACCESS_NOTE" ]]; then
+    echo ""
+    echo "$ACCESS_NOTE"
+  fi
   echo ""
 fi
 
