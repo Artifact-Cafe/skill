@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.9.0**
+**Skill version: 0.10.0**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -26,6 +26,11 @@ by clicking elements or selecting text, and the author can iterate.
 
 To install or update: `npx skills add artifact-cafe/skill --skill artifact-cafe -g`
 (drop `-g` for a repo-local install).
+
+This file is the always-loaded manual. Deeper playbooks ship next to it in
+`./references/` (organizing the library, the live-editing loop, access and
+sharing) — each section below says when to read which; read them at that
+moment rather than up front.
 
 ## When to reach for this
 
@@ -98,7 +103,7 @@ Options:
 --entry index.html              # entry file (default: auto-detect)
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
---folder specs                  # optional folder — SETS VISIBILITY, see below
+--folder specs                  # folder in that workspace — SETS VISIBILITY, see below
 --review off                    # plain artifact: no review tools (see below)
 --json                          # machine-readable output (use this for agents)
 --no-open                       # don't try to open a browser
@@ -123,10 +128,10 @@ visibility (`public` or `workspace`) and the artifact inherits it on publish.
 Land in a `workspace` folder and the review URL stops being a link anyone can
 open — it asks for a sign-in, and only members of that workspace get through.
 Without `--folder`, a new artifact is `unlisted`: anyone with the link, no
-account. So don't reach for `--folder` just to keep things tidy; discover the
-folder's visibility first with
-`npx artifact-cafe@latest folders --workspace <handle> --json`, and if it's
-`workspace`, say so before you publish there.
+account. So discover the folder's visibility first with
+`npx artifact-cafe@latest folders --workspace <handle> --json`, and say so
+before you publish anywhere that isn't `unlisted`. Filing is still the
+default — see "Keep the library organized".
 
 `publish --json` reports the result as `visibility`
 (`public` | `unlisted` | `workspace` | `private`) — read it and tell the user
@@ -177,6 +182,44 @@ a workspace you guessed from its content; the user's choice decides. `--json`
 disables the CLI's own interactive workspace picker, so a logged-in agent that
 skips this step defaults straight to Personal — which is exactly why you run
 these two checks yourself.
+
+## Keep the library organized (folders)
+
+Every workspace — Personal included — has a **flat** list of folders (no
+nesting). Filing is part of publishing well: place each artifact at publish
+time instead of leaving everything in one unfiled pile.
+
+**3. Pick a folder (after the workspace, before the first publish).** Once the
+workspace is decided, list its folders:
+
+```bash
+npx artifact-cafe@latest folders --workspace <handle> --json
+```
+
+- If an existing folder clearly matches the artifact's subject, publish with
+  `--folder "<name>"` (exact name, case-sensitive — or the folder id). Match
+  on meaning, not string equality — a "Specs" folder is the home for a new
+  spec even if no words overlap.
+- If nothing fits, leave the artifact unfiled rather than forcing a bad
+  match. Create a folder (`folders create "<name>" --workspace <handle>`)
+  only when a real group exists — **never for a single artifact** — and
+  reuse before creating: the CLI refuses a duplicate name; treat that as
+  "use the existing folder".
+- **⚠ A folder's visibility becomes the artifact's.** Publishing or moving
+  into a `public` folder makes the artifact public, with no confirmation
+  prompt anywhere — confirm with the user before any public placement, and
+  report every visibility change (see "--folder decides who can open the
+  review link" above).
+- Re-file without republishing: `npx artifact-cafe@latest move --folder
+  "<name>"` (`--artifact <id>` to target one, `--unfiled` for the root). No
+  new version; comments untouched.
+
+**When the user asks you to organize their library** ("organize my
+artifacts", "clean up my workspace"), read `./references/organize.md` first
+and follow its plan-first flow — never bulk-move or bulk-create without
+showing the plan. It also has the folder-creation rules, naming guidance,
+and `move`/`list --workspace` details. Folder commands need the Node CLI
+and a signed-in account; the bash fallback can't manage placement.
 
 ## Publish without Node (fallback)
 
@@ -293,50 +336,18 @@ fallback.
 ## Offer live editing mode (opt-in)
 
 Publishing and live editing are separate actions. After publishing and sharing
-the review URL, ask the user whether they want to enter **live editing mode**.
-Explain that you will stay attached to the local artifact, receive new comments
-as they arrive, revise it, and publish new immutable versions while they review.
+the review URL, ask the user whether they want to enter **live editing mode**:
+you stay attached to the local artifact, receive new comments as they arrive
+(`npx artifact-cafe@latest listen --json --timeout 540`), revise, and publish
+new immutable versions while they review.
 
-Do not start live editing mode automatically. A user may want to share the link
-with guests and collect feedback asynchronously without keeping a local agent
-session active. Only start listening after the user explicitly opts in:
-
-```bash
-npx artifact-cafe@latest listen --json --timeout 540
-```
-
-`listen` is the live-loop entry point — it's exactly `comments --wait` (same
-flags, same output), named for what it does. It does **not** run a local server
-or auto-republish on save; publishing the next version stays a separate,
-explicit `publish`. The command blocks until a reviewer leaves *new* feedback (a
-new thread, or a new reply), then prints only the new/changed threads and exits
-`0`. Each thread is tagged `"change": "new" | "updated"`. If nothing arrives
-before `--timeout` seconds it exits `2` with `"timedOut": true`. While it runs,
-the review page shows a live **"Agent is listening"** indicator, so the reviewer
-knows their comments will be acted on immediately.
-
-The opt-in loop, until the user says they're done:
-
-1. `publish` → share the review URL → ask whether to enter live editing mode.
-2. After a clear yes, run `listen --json --timeout 540` (pick a timeout under
-   your execution environment's command limit — 540s fits a 10-minute cap).
-3. Feedback arrives → make the changes it asks for.
-4. `publish` again → the reviewer's page offers "v{N} just published — view
-   latest" automatically.
-5. `reply <threadId> --resolve` each thread you addressed, so the reviewer sees
-   what changed and the thread closes. Go to 2.
-
-If the command times out with exit code `2`, tell the user the listening window
-ended and ask whether to continue before running it again. Do not keep an
-unattended session alive indefinitely.
-
-`listen` needs the Node CLI (no bash-script fallback). It normally runs from
-the folder's `.artifactcafe/config.json`, but it doesn't have to: you can listen
-from **any machine** — CI, a fresh checkout, a different session than the one
-that published — by pointing at the artifact directly with `--artifact <id>`
-(or `ARTIFACT_CAFE_ARTIFACT_ID`) plus `ARTIFACT_CAFE_TOKEN`. That credential —
-the folder token, the env token, or a signed-in account key — authorizes the
-presence heartbeat and unlocks password-protected artifacts.
+**Do not start live editing mode automatically.** A user may want to share the
+link and collect feedback asynchronously without keeping an agent session
+active. After a clear yes, read `./references/live-editing.md` and run the
+loop it describes (listen → edit → publish → `reply --resolve` → listen). When
+`listen` exits `2` (timeout), tell the user the listening window ended and ask
+whether to continue before running it again — never keep an unattended session
+alive indefinitely.
 
 ## Open the review page
 
@@ -370,65 +381,20 @@ After the first publish, the folder holds:
 
 ## Who can open the review link
 
-Every artifact has a **visibility**, and it decides whether the review URL is
-something you can paste into a group chat or something that stops at a sign-in:
+Every artifact has a **visibility**: `public` and `unlisted` open for anyone
+with the link, no account (`unlisted` — random, unguessable slug — is the
+default for a new artifact); `workspace` stops non-members at a sign-in;
+`private` admits only the publisher, the workspace's owner/admins, and people
+invited by email. A new artifact takes its folder's visibility if it lands in
+one. **The CLI cannot change visibility** — there is no `--visibility` flag;
+it's a dashboard action, or a consequence of which folder the artifact sits in.
 
-| Visibility | Who can open the review URL |
-|---|---|
-| `public` | Anyone with the link, no account. Also listed on the workspace's public page. |
-| `unlisted` | Anyone with the link, no account. Not listed anywhere. **The default for a new artifact.** |
-| `workspace` | **Members of the owning workspace only** — everyone else is asked to sign in. |
-| `private` | The publisher, the workspace's owner/admins, and people invited by email. |
-
-A new artifact is `unlisted` unless it lands in a folder, in which case it takes
-that folder's visibility. **Check it after publishing** — `publish --json`
-returns `visibility`, and `npx artifact-cafe@latest share --list` prints it as
-`General access` for an artifact you already have.
-
-**The CLI cannot change visibility** — there is no `--visibility` flag. It's a
-dashboard action (the artifact's share menu), or a consequence of which folder
-the artifact sits in. If the user wants a members-only artifact opened up, point
-them at the dashboard rather than guessing at a flag.
-
-## Share with one person
-
-When an artifact is `workspace` or `private` and someone outside needs in,
-invite them by email instead of loosening the artifact for everyone:
-
-```bash
-npx artifact-cafe@latest share alex@example.com     # invite (prints a link, once)
-npx artifact-cafe@latest share a@x.com b@y.com      # several at once
-npx artifact-cafe@latest share --list               # who has access + general access
-npx artifact-cafe@latest unshare alex@example.com   # revoke
-```
-
-Each invite returns an invitation URL **printed once** — surface it to the user
-verbatim, the same way you'd treat a claim URL. A grant survives redemption and
-is revoked by `unshare`, not by expiry. Same targeting as the rest
-(`--artifact <id>`, `--json`).
-
-## Read an artifact back
-
-To read a published artifact's content — yours or one you were pointed at —
-append `.md` to its content URL for a Markdown rendition:
-
-```bash
-curl -L https://<slug>.artifactcafe.dev/index.md
-```
-
-If the artifact is `workspace` or `private`, that request **401s with
-`workspace_required`** unless it carries an account credential. A browser
-session doesn't help here: the content origin is a different site and can't see
-it. Pass your account key instead:
-
-```bash
-curl -L -H "Authorization: Bearer ack_<key>" https://<slug>.artifactcafe.dev/index.md
-```
-
-The key is the one `artifact-cafe login` stored; it must belong to an account
-that is a member of the owning workspace (or holds a grant). Getting
-`workspace_required` while signed in on the website is expected — it means the
-request had no key, not that your account lacks access.
+For everything past that one-liner — the full visibility table, inviting
+someone by email (`share <email>` — the invitation URL prints **once**,
+surface it verbatim), auditing and revoking access (`share --list`,
+`unshare`), and reading a published artifact's content back over HTTP (append
+`.md` to its content URL; gated artifacts need a Bearer account key) — read
+`./references/access.md`.
 
 ## Anonymous vs. claimed artifacts
 
