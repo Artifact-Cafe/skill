@@ -99,9 +99,24 @@ Options:
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
 --folder specs                  # optional folder in that workspace
+--review off                    # plain artifact: no review tools (see below)
 --json                          # machine-readable output (use this for agents)
 --no-open                       # don't try to open a browser
 ```
+
+**Leave review open unless the user asks otherwise.** Getting comments back is
+the point of publishing here. `--review off` gives a plain artifact with no
+review layer at all — right when the user wants a deliverable, demo, or
+portfolio piece rather than feedback, and only when they've said so.
+`--review readonly` keeps existing comments readable and refuses new ones.
+Either can be changed later, with the publish token and no account:
+
+```bash
+npx artifact-cafe@latest review readonly   # close it to new comments
+npx artifact-cafe@latest review open       # reopen it
+```
+
+Comments are never deleted by this and come back when review reopens.
 
 On the **first** publish of a new folder the command prints a **review URL**
 and a **claim URL** (shown once). It writes `.artifactcafe/config.json` with the
