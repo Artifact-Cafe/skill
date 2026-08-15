@@ -100,6 +100,7 @@ Options:
 ```bash
 --title "Onboarding redesign"   # RECOMMENDED — review-page title + URL slug; generate one by default
 --notes $'- Added X\n- Fixed Y' # RECOMMENDED — bullet-point changelog for this version (see below)
+--description "One line"        # share-card summary; overrides the entry HTML (see below)
 --entry index.html              # entry file (default: auto-detect)
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
@@ -144,6 +145,43 @@ artifact id and a secret publish token, and gitignores it.
 Decide the destination **before** the first publish — see "Choose where to
 publish" below. Always use `--json` and report its `destination` and
 `destinationSource` fields.
+
+## Make the shared link unfurl right
+
+When the review URL is pasted into X, Threads, Slack, Telegram, or Discord, the
+preview card is built from the artifact. By default it is a generated
+artifact.cafe card whose copy is about reviewing. That fits a dashboard you
+want feedback on. It reads wrong for anything meant to be read.
+
+**Put these in the entry file's `<head>` whenever you build something to be
+read rather than reviewed** (an article, a report, a guide, a comparison):
+
+```html
+<meta name="description" content="One line on what this is.">
+<meta property="og:image" content="cover.png">
+<meta name="author" content="Ada Lovelace">
+```
+
+The API reads them at publish time, so this works from every path: the npm CLI,
+the bash fallback, and a raw API call. `og:description` and `article:author`
+are accepted too. Skip all three and the link behaves exactly as it always has.
+
+The image is the part with rules, all enforced server-side:
+
+- **It must be a file inside the folder you publish.** `cover.png`,
+  `./cover.png`, and `/assets/cover.png` all work. A remote URL, a
+  protocol-relative URL, and a `data:` URI are refused outright.
+- PNG, JPEG, WebP, or GIF, under 5 MB. 1200x630 is the right size. No SVG.
+- Anything refused quietly falls back to the generated card. Nothing breaks,
+  and the description and byline still ship.
+
+`--description "…"` overrides whatever the entry file declares. Reach for it
+when the document's own meta description is not the sentence that belongs on a
+timeline.
+
+**A gated artifact declares nothing.** Password-protected, workspace, and
+private artifacts always unfurl as the locked card whatever their tags say, so
+there is nothing to set there.
 
 ## Choose where to publish (do this before a new artifact)
 

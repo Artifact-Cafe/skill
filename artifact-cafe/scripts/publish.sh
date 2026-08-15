@@ -16,6 +16,7 @@ UPLOAD_TIMEOUT=120
 
 DIR="."
 TITLE=""
+DESCRIPTION=""
 ENTRY=""
 ARTIFACT_ID_FLAG=""
 TOKEN_FLAG=""
@@ -32,6 +33,7 @@ Publishes a folder of static files as an artifact for review.
 
 Options:
   --title <text>       Artifact title
+  --description <text> Share-card summary (overrides the entry HTML)
   --entry <file>       Entry file (default: auto-detect index.html)
   --artifact <id>      Publish a new version to an existing artifact id
   --client <name>      Agent name for attribution (e.g. claude-code, cursor)
@@ -78,6 +80,7 @@ DIR_SET=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --title)    TITLE="$2"; shift 2 ;;
+    --description) DESCRIPTION="$2"; shift 2 ;;
     --entry)    ENTRY="$2"; shift 2 ;;
     --artifact) ARTIFACT_ID_FLAG="$2"; shift 2 ;;
     --client)   CLIENT="$2"; shift 2 ;;
@@ -250,6 +253,7 @@ body="$(
     --arg entry "$ENTRY" \
     --argjson files "$FILES_JSON" \
     --arg title "$TITLE" \
+    --arg description "$DESCRIPTION" \
     --arg agent "$CLIENT" \
     --arg runid "${ARTIFACT_CAFE_RUN_ID:-}" \
     '{
@@ -260,7 +264,8 @@ body="$(
         + (if $agent == "" then {} else {agent:$agent} end)
         + (if $runid == "" then {} else {runId:$runid} end))
     }
-    + (if $title == "" then {} else {title:$title} end)'
+    + (if $title == "" then {} else {title:$title} end)
+    + (if $description == "" then {} else {description:$description} end)'
 )"
 
 api_post() { # path body → prints body, dies on non-2xx with structured error
