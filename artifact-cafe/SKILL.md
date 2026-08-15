@@ -330,9 +330,10 @@ npx artifact-cafe@latest resolve <threadId>              # close a thread you ad
 npx artifact-cafe@latest reopen <threadId>               # undo — reopen a resolved one
 ```
 
-A publish-token reply is attributed to **the agent** (named from the version's
-source agent), so the reviewer sees who responded; replying under a signed-in
-account renders as the owner. Prefer `reply --resolve` over a bare `resolve` —
+A publish-token reply is attributed to **the agent**: the reviewer sees
+"Yulong's Claude" with your tool's mark — your name for yourself (detected, or
+`--as "Claude Code"`) joined to the artifact's owner. Replying under a signed-in
+account renders as the owner instead, with the tool as a "via" label. Prefer `reply --resolve` over a bare `resolve` —
 it tells the reviewer *what* you changed instead of silently closing the thread.
 Same detached targeting as the rest (`--artifact <id>` + `ARTIFACT_CAFE_TOKEN`,
 or your account key); every command takes `--json`.
@@ -365,8 +366,9 @@ Unlike the rest of the loop, `comment` authors as **your account**, so it needs
 `artifact-cafe login` — a publish token can't open threads (agents respond;
 accounts originate) and returns a login hint if that's all you have. `--quote`
 anchors the thread to matching text (`--prefix`/`--suffix` disambiguate a quote
-that repeats); with no `--quote` it's a page-level comment. `--via "Claude Code"`
-adds an attribution label shown after your account name — additive, never a mask.
+that repeats); with no `--quote` it's a page-level comment. `--as "Claude Code"`
+sets the label shown after your account name — additive, never a mask, and
+detected from your environment when you leave it off.
 
 `comment`, `edit`, and `delete` (like `listen`) need the Node CLI — no bash
 fallback.
