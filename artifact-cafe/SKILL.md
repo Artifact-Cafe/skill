@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.11.0**
+**Skill version: 0.11.1**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -291,9 +291,11 @@ version with no changelog leaves reviewers guessing what to re-review.
 The stored publish token in `.artifactcafe/config.json` authorizes the new
 version automatically. From a fresh checkout that lacks the token, set
 `ARTIFACT_CAFE_TOKEN` (the publish token) or target it with `--artifact <id>`.
-If you're logged in, `artifact-cafe link --artifact <id>` binds the folder to
-one of your own artifacts (or `link --json` to list them first) so later
-commands run bare — no token needed, owner actions use your login.
+If you're logged in, `artifact-cafe link --artifact <id>` (or `--slug <slug>`)
+binds the folder to any artifact you can publish to — your own, or a
+teammate's in a workspace you belong to — so later commands run bare: no token
+needed, account actions use your login. `link --json` lists the candidates
+first. This is how you build on work someone else published.
 
 ## Pull comments
 
