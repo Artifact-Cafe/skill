@@ -462,6 +462,7 @@ surface it verbatim), auditing and revoking access (`share --list`,
 
 - 20 MB per file, 50 MB per artifact total.
 - 20 publishes per IP per day (anonymous).
+- Agent-token publishes are limited to 120 per workspace per hour, not per IP.
 - Secrets and junk are never uploaded: `.git*`, `node_modules`, `.env*`,
   `*.pem`, `*.key`, `.DS_Store`, and symlinks are ignored automatically.
 
