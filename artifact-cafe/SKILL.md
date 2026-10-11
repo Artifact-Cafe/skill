@@ -12,7 +12,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.11.1**
+**Skill version: 0.11.2**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -138,7 +138,7 @@ default — see "Keep the library organized".
 (`public` | `unlisted` | `workspace` | `private`) — read it and tell the user
 what the link they're about to send actually does. See "What to tell the user".
 
-On the **first** publish of a new folder the command prints a **review URL**
+On an **anonymous first** publish of a new folder the command prints a **review URL**
 and a **claim URL** (shown once). It writes `.artifactcafe/config.json` with the
 artifact id and a secret publish token, and gitignores it.
 
@@ -185,7 +185,18 @@ there is nothing to set there.
 
 ## Choose where to publish (do this before a new artifact)
 
-This applies to the **first** publish of a new folder. A new *version* reuses
+**Runtime agent token:** if `ARTIFACT_CAFE_API_KEY` starts with `aat_`, use
+that credential directly without printing or saving it. Skip `whoami`, login,
+workspace discovery, and folder selection. Publish without `--workspace` or
+`--folder`; the token selects exactly its own workspace and project defaults
+do not apply. `comments`, `reply`, and `resolve` work from the saved binding,
+with agent attribution. New artifacts default to `unlisted`: anyone with the
+link can review without an account. The artifact has no anonymous expiry,
+claim URL or permanent publish token. Do not try account, grants, members or workspace admin
+commands. The runtime revokes the token at run end; expired/revoked tokens 401.
+
+This applies to the **first** publish of a new folder with ordinary
+credentials. A new *version* reuses
 the destination already recorded in `.artifactcafe/config.json` — skip all of
 this and just `publish` again. Resolve the destination in this priority order:
 
@@ -288,7 +299,8 @@ npx artifact-cafe@latest publish ./my-artifact \
 **Pass `--notes` describing what changed since the last version** — a new
 version with no changelog leaves reviewers guessing what to re-review.
 
-The stored publish token in `.artifactcafe/config.json` authorizes the new
+The runtime's `aat_` agent token, or the stored publish token in
+`.artifactcafe/config.json`, authorizes the new
 version automatically. From a fresh checkout that lacks the token, set
 `ARTIFACT_CAFE_TOKEN` (the publish token) or target it with `--artifact <id>`.
 If you're logged in, `artifact-cafe link --artifact <id>` (or `--slug <slug>`)
@@ -332,7 +344,7 @@ npx artifact-cafe@latest resolve <threadId>              # close a thread you ad
 npx artifact-cafe@latest reopen <threadId>               # undo — reopen a resolved one
 ```
 
-A publish-token reply is attributed to **the agent**: the reviewer sees
+A publish-token or agent-token reply is attributed to **the agent**: the reviewer sees
 "Yulong's Claude" with your tool's mark — your name for yourself (detected, or
 `--as "Claude Code"`) joined to the artifact's owner. Replying under a signed-in
 account renders as the owner instead, with the tool as a "via" label. Prefer `reply --resolve` over a bare `resolve` —
@@ -399,7 +411,7 @@ npx artifact-cafe@latest open     # prints (and, in a terminal, opens) the revie
 
 ## Local config and the publish token
 
-After the first publish, the folder holds:
+After the first publish, the folder holds (an `aat_` publish omits `publishToken`):
 
 ```text
 .artifactcafe/config.json
@@ -440,7 +452,7 @@ surface it verbatim), auditing and revoking access (`share --list`,
 
 ## Anonymous vs. claimed artifacts
 
-- A first publish with no account creates an **anonymous** artifact that
+- A first publish with no account or agent token creates an **anonymous** artifact that
   **expires in 24 hours** and returns a one-time **claim URL**.
 - Claiming (opening the claim URL) keeps the artifact permanently and attaches
   it to the user's account. Claim tokens are shown **once** and can't be
