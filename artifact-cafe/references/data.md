@@ -18,8 +18,7 @@ Create `.artifact/data.json` beside the entry file:
         "name": { "type": "string", "required": true, "maxLength": 80 },
         "message": { "type": "string", "required": true, "maxLength": 1000 }
       },
-      "access": { "read": "public", "insert": "public", "update": "creator", "delete": "none" },
-      "rateLimit": "10/hour/ip"
+      "access": { "read": "public", "insert": "public", "update": "creator", "delete": "none" }
     }
   }
 }
@@ -66,8 +65,8 @@ records/artifact; there is no cap on how many artifacts use data.
 Default per-IP reads are 120/minute, writes 10/minute. All non-owner callers also share 10,000
 reads/hour and 1,000 writes/hour per artifact; owner-plane calls are exempt.
 `rateLimit` accepts N/hour/ip or N/minute/ip and overrides only the per-IP write
-rate, never the artifact ceiling. Keep the guestbook's explicit 10/hour/ip for
-spam control. Rate errors are 429 with `retryAfter` and `scope: "ip" | "artifact"`.
+rate, never the artifact ceiling. Leave it out by default; tighten it (e.g.
+10/hour/ip) only for a public form that attracts spam. Rate errors are 429 with `retryAfter` and `scope: "ip" | "artifact"`.
 
 ## Owner tooling and local development
 
