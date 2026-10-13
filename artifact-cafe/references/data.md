@@ -62,9 +62,7 @@ anonymous deletion/expiry skips the store because it cannot hold data.
 
 Limits: 64 KB manifest, 10 collections, 50 fields each, 16 KB record.
 Free-tier capacity is 10,000
-records/artifact and 10 active data-enabled artifacts/workspace; finalize checks
-only newly enabled data and permits republishing enabled artifacts. Unclaimed
-artifacts, workspace moves, and claims skip that workspace check in v1.
+records/artifact; there is no cap on how many artifacts use data.
 Default per-IP reads are 120/minute, writes 10/minute. All non-owner callers also share 10,000
 reads/hour and 1,000 writes/hour per artifact; owner-plane calls are exempt.
 `rateLimit` accepts N/hour/ip or N/minute/ip and overrides only the per-IP write
