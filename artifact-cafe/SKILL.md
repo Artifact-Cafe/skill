@@ -7,12 +7,13 @@ description: >
   to elements and text. Authors then publish new immutable versions. Use when
   asked to "publish this for review", "share this for feedback", "put this
   online for comments", "get review on this", "ship a preview", "make a review
-  link", "publish an artifact", "send this to a reviewer", or "publish v2".
+  link", "publish an artifact", "send this to a reviewer", "publish v2",
+  "make a poll", "guestbook", "RSVP", or "collect submissions".
 ---
 
 # artifact.cafe
 
-**Skill version: 0.11.2**
+**Skill version: 0.12.3**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -29,8 +30,8 @@ To install or update: `npx skills add artifact-cafe/skill --skill artifact-cafe 
 
 This file is the always-loaded manual. Deeper playbooks ship next to it in
 `./references/` (organizing the library, the live-editing loop, access and
-sharing) — each section below says when to read which; read them at that
-moment rather than up front.
+sharing, shared data in `data.md`) — each section below says when to read
+which; read them at that moment rather than up front.
 
 ## When to reach for this
 
@@ -402,6 +403,12 @@ loop it describes (listen → edit → publish → `reply --resolve` → listen)
 `listen` exits `2` (timeout), tell the user the listening window ended and ask
 whether to continue before running it again — never keep an unattended session
 alive indefinitely.
+
+## Persistent shared data
+
+For a poll, guestbook, RSVP, or collecting submissions shared across visitors,
+use Artifact Data. The artifact must be claimed; guests can submit without
+accounts. Read `./references/data.md` before writing a manifest.
 
 ## Open the review page
 
