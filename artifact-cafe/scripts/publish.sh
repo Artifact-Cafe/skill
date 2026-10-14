@@ -99,7 +99,7 @@ DIR="$(cd "$DIR" && pwd)"
 
 log() { [[ "$JSON" -eq 1 ]] || echo "$@"; }
 
-# ── MIME map — kept in sync with packages/cli/src/manifest.ts ──────────────
+# ── MIME map — kept in sync with the artifact-cafe CLI ────────────────────
 mime_for() {
   local ext
   ext="$(printf '%s' "${1##*.}" | tr '[:upper:]' '[:lower:]')"
@@ -132,7 +132,7 @@ mime_for() {
   esac
 }
 
-# ── Ignore rules — kept in sync with packages/cli/src/manifest.ts ──────────
+# ── Ignore rules — kept in sync with the artifact-cafe CLI ────────────────
 # Secrets and junk never leave the machine; the API enforces size limits.
 ignored_file() {
   local base="$1"
@@ -203,7 +203,7 @@ else
   fi
 fi
 
-# ── Config & auth (SPEC §5.3 / §5.4) ───────────────────────────────────────
+# ── Config & auth ──────────────────────────────────────────────────────────
 CONFIG_DIR="$DIR/.artifactcafe"
 CONFIG_FILE="$CONFIG_DIR/config.json"
 cfg() { [[ -f "$CONFIG_FILE" ]] && jq -r --arg k "$1" '.[$k] // empty' "$CONFIG_FILE" 2>/dev/null || true; }

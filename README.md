@@ -44,4 +44,4 @@ fallback for environments without Node.
 
 ## Canonical source
 
-This repo is mirrored from the artifact.cafe monorepo (`skill/`). Edit it there.
+This repo is a published mirror of the artifact.cafe skill; changes are made upstream.

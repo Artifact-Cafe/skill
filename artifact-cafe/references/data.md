@@ -40,35 +40,34 @@ email, array, object. Constraints: required, default, maxLength, trim,
 minimum, maximum. Names match `^[a-z][a-z0-9_]*$`, max 64 chars; `id`,
 `created_at`, `updated_at` are server stamps. Content responses return `mine: boolean`
 for the requesting creator and hide creator credentials and signed account ids.
-Only the authenticated owner plane includes `created_by`. All five metadata names
+Only the authenticated owner API includes `created_by`. All five metadata names
 (`id`, `created_at`, `updated_at`, `created_by`, `mine`) are reserved. Unknown fields
 return 400 naming them. Escape submitted values with `textContent`.
 
 Access per read/insert/update/delete is public, creator, owner, or none;
 default read public, writes owner. Public update/delete additionally require
-`publicMutation: "open"`. Creator prefers signed member identity from the
-shell, falling back to client-minted per-browser guest possession credentials.
-Data access uses the artifact's full content gate (visibility, membership,
-grants, password, `ac_at`, `ack_`); browser mutations must come from its own origin.
+`publicMutation: "open"`. Creator is the signed-in account when present,
+otherwise a per-browser guest id (possession, not identity). Whoever can't open
+the artifact can't touch its data (visibility, membership, shares, password);
+browser mutations must come from the artifact's own origin.
 
 ## Persistence and limits
 
 Records survive v2, slug rename, and workspace transfers. A supplied manifest
 replaces config, omission preserves it, and `{"collections":{}}` disables the
 API. Claimed-artifact deletion clears its whole store. A store outage returns
-`503 service_unavailable` with `retryAfter` and keeps the artifact for retry;
-anonymous deletion/expiry skips the store because it cannot hold data.
+`503 service_unavailable` with `retryAfter` and keeps the artifact for retry.
 
 Limits: 64 KB manifest, 10 collections, 50 fields each, 16 KB record.
 Free-tier capacity is 10,000
 records/artifact; there is no cap on how many artifacts use data.
 Default per-IP reads are 120/minute, writes 10/minute. All non-owner callers also share 10,000
-reads/hour and 1,000 writes/hour per artifact; owner-plane calls are exempt.
+reads/hour and 1,000 writes/hour per artifact; owner calls are exempt.
 `rateLimit` accepts N/hour/ip or N/minute/ip and overrides only the per-IP write
 rate, never the artifact ceiling. Leave it out by default; tighten it (e.g.
 10/hour/ip) only for a public form that attracts spam. Rate errors are 429 with `retryAfter` and `scope: "ip" | "artifact"`.
 
-## Owner tooling and local development
+## Owner tooling
 
 Owner tooling accepts `ack_` keys, scoped `aat_` tokens, or the linked publish
 token:
@@ -79,6 +78,4 @@ npx artifact-cafe@latest data export --json
 npx artifact-cafe@latest data clear entries --yes --json
 ```
 
-The `/api/v1/artifacts/:id/data` owner plane also accepts BetterAuth sessions.
-Local `/r/` serves files only;
-Artifact Data requires the real render Worker (`wrangler dev`).
+The `/api/v1/artifacts/:id/data` owner API also accepts a signed-in session.

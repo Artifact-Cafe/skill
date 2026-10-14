@@ -13,7 +13,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.12.4**
+**Skill version: 0.12.6**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
