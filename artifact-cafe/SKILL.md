@@ -1,8 +1,9 @@
 ---
 name: artifact-cafe
 description: >
-  artifact.cafe is the home for AI-generated work: publish interactive static
-  artifacts (HTML apps, dashboards, mockups, reports, slides, docs) to a review
+  The artifact layer for AI agents. artifact.cafe is the Artifact Layer for
+  AI Agents: publish interactive static artifacts (HTML apps, dashboards,
+  mockups, reports, slides, docs) to a review
   URL that humans open with no login and comment on directly — pinning feedback
   to elements and text. Authors then publish new immutable versions. Use when
   asked to "publish this for review", "share this for feedback", "put this
