@@ -74,6 +74,8 @@ token:
 
 ```sh
 npx artifact-cafe@latest data ls entries --json
+npx artifact-cafe@latest data insert entries --record '{"name":"Ada","message":"hi"}' --json
+npx artifact-cafe@latest data insert entries --file seed.json --json   # JSON array, batched
 npx artifact-cafe@latest data export --json
 npx artifact-cafe@latest data clear entries --yes --json
 ```
