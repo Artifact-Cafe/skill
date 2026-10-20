@@ -14,7 +14,7 @@ description: >
 
 # artifact.cafe
 
-**Skill version: 0.12.6**
+**Skill version: 0.13.1**
 
 artifact.cafe hosts static artifacts for **review**. One loop:
 
@@ -104,6 +104,7 @@ Options:
 --notes $'- Added X\n- Fixed Y' # RECOMMENDED — bullet-point changelog for this version (see below)
 --description "One line"        # share-card summary; overrides the entry HTML (see below)
 --entry index.html              # entry file (default: auto-detect)
+--expires-in 1h                 # explicit temporary lifetime (30m, 1h, 7d)
 --artifact art_xxx              # publish a new version to an existing artifact
 --workspace acme                # explicit team workspace
 --folder specs                  # folder in that workspace — SETS VISIBILITY, see below
@@ -147,6 +148,45 @@ artifact id and a secret publish token, and gitignores it.
 Decide the destination **before** the first publish — see "Choose where to
 publish" below. Always use `--json` and report its `destination` and
 `destinationSource` fields.
+
+## Temporary artifacts
+
+For a newly created one-off preview or interaction, choose a lifetime when
+that fits the user's task, using `publish --expires-in 1h --json`. The mode
+does not decide whether to publish. Existing artifacts stay on their existing
+lifetime unless the user asks for a change; ordinary republishing preserves
+the explicit deadline. Never infer a new temporary deadline for an existing
+artifact just because you are editing it.
+
+Read `autoDeleteAt` and `expiresAt` from the result. **Share the exact effective
+expiry with a timezone alongside the review URL**, and tell the human that
+all versions, comments, files, and artifact data will be deleted. Time starts
+when publishing finishes; do not calculate the deadline from your own clock.
+Durations are positive whole numbers followed by `m`, `h`, or `d`.
+
+Before expiry, a controller can extend or keep without creating a version:
+
+```bash
+npx artifact-cafe@latest expiration --in 7d --json
+npx artifact-cafe@latest expiration --keep --json
+```
+
+The folder binding, `--artifact <id>`, and usual auth chain apply. Managers
+also have **Set expiry**, followed by **Keep permanently**, behind the review
+toolbar's clock and in Settings → General → Lifetime. The clock panel opens
+only when clicked; its panel and actions fill the available width on phones.
+Plain mode keeps lifetime management in settings.
+
+**Keep permanently** is the UI name for `expiration --keep`: it removes the
+explicit temporary deadline. For an owned artifact this leaves **no automatic
+expiry**, preserving the URL, versions, and comments. Do not describe clearing
+a temporary deadline as making an anonymous artifact permanent: it must also
+be claimed to remove anonymous retention. Report the returned `expiresAt`;
+`null` means there is no remaining automatic expiry.
+At expiry new access stops and the item leaves lists/search; daily background
+cleanup removes its contents and retries failures. There is no restore window.
+Anonymous retention still caps the lifetime until claimed: `--keep` clears
+only the explicit deadline, and claiming preserves an explicit deadline.
 
 ## Make the shared link unfurl right
 
@@ -213,8 +253,8 @@ this and just `publish` again. Resolve the destination in this priority order:
   publishing anonymously.
 - **Not logged in** (non-zero exit): publish directly. This is an **anonymous**
   artifact — it expires in 24h and returns a one-time claim URL. Tell the user
-  it's anonymous, and that `artifact-cafe login` first gives a permanent,
-  account-owned artifact instead.
+  it's anonymous, and that `artifact-cafe login` first creates an
+  account-owned artifact without anonymous retention instead.
 
 **2. Then pick the workspace (logged-in only).** If the user named an explicit
 `--workspace`, or a project `artifact-cafe.json` default applies, use it and
@@ -462,8 +502,9 @@ surface it verbatim), auditing and revoking access (`share --list`,
 
 - A first publish with no account or agent token creates an **anonymous** artifact that
   **expires in 24 hours** and returns a one-time **claim URL**.
-- Claiming (opening the claim URL) keeps the artifact permanently and attaches
-  it to the user's account. Claim tokens are shown **once** and can't be
+- Claiming (opening the claim URL) removes anonymous retention and attaches
+  it to the user's account. An explicit temporary deadline remains until kept
+  or extended. Claim tokens are shown **once** and can't be
   recovered — surface the claim URL to the user immediately.
 
 ## Limits
@@ -516,8 +557,10 @@ time is planned — treat this as a policy you enforce now, not a filter to evad
   `artifact-cafe share <email>` for anyone outside. A user who sends a
   members-only link to an outside reviewer and hears nothing back is the exact
   failure this line exists to prevent.
-- If the run printed a **claim URL**, tell the user it's shown only once and
-  that the artifact expires in 24 hours unless they claim it. Share it verbatim.
+- If the run printed a **claim URL**, share it verbatim: it is shown only
+  once. Explain anonymous retention and report the effective `expiresAt`
+  (which can be earlier than 24 hours). Claiming preserves an explicit
+  temporary deadline until the artifact is kept or extended.
 - On a new version, share the review URL and note it's now **v{N}**; prior
   comments remain on their original versions.
 - Never tell the user to read `.artifactcafe/config.json` for the URL or token.
